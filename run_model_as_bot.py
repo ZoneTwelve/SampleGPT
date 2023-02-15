@@ -5,13 +5,15 @@
 
 
 #!/usr/bin/env python3
+import logging
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import time
 
 from telegram import ForceReply, Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import CommandHandler, ContextTypes
+from TelegramApi import *
 
 
 # hyperparameters
@@ -33,7 +35,7 @@ torch.manual_seed(1337)
 target = 'ne'
 
 # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open(f'datasets/{target}.txt', 'r', encoding='utf-8') as f:
+with open(f'datasets/{target}', 'r', encoding='utf-8') as f:
     text = f.read()
 
 # here are all the unique characters that occur in this text
@@ -244,38 +246,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=ForceReply(selective=True),
     )
 
-async def say(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         print(update)
-        user = update.effective_user
-        #uname = user.first_name + user.last_name
-        uname = "Me"
-        #if 'username' in user:
-        #    uname = user.username
-        input_message = uname + ": " +update.message.text + '🛑\n'
-        # user.username 
+        # uname = "Me"
+        text = GetTextWithoutCommand(update)
+        username = GetUserName(update)
+        if text is None:
+            text = GetTextWithoutCommand(update.message.reply_to_message)
+            username = GetUserName(update.message.reply_to_message)
+
+        input_message = username + ": " + text + '🛑\n'
+
         context = torch.tensor([encode( input_message )], dtype=torch.long, device=device)
         response = decode(m.generate(context, max_new_tokens=300, stop_token='🛑', stop_token_hit=5)[0].tolist()).replace('🛑', '')
         print(response)
         print('-'*10)
-        await update.message.reply_text( response )
+        await Reply(update, response)
     except:
-        await update.message.reply_text( 'error' )
+        Reply(update, 'error')
 
 def bot_main() -> None:
-    """Start the bot."""
-    # Create the Application and pass it your bot's token.
-    application = Application.builder().token("TOKEN").build()
-
-    # on different commands - answer in Telegram
-    application.add_handler(CommandHandler("start", start))
-    #application.add_handler(CommandHandler("help", help_command))
-
-    # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, say))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("talk", talk))
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling()
-
+    logging.info("Bot Server Running...")
+    app.run_polling(stop_signals=None)
 
 bot_main()
