@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ignore the dataset and models
+!datasets/README.md
+!models/README.md
