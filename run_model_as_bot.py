@@ -251,10 +251,10 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(update)
         # uname = "Me"
         text = GetTextWithoutCommand(update)
-        username = GetUserName(update)
+        username = GetFullName(update)
         if text is None:
             text = GetTextWithoutCommand(update.message.reply_to_message)
-            username = GetUserName(update.message.reply_to_message)
+            username = GetFullName(update.message.reply_to_message)
 
         input_message = username + ": " + text + '🛑\n'
 
@@ -264,7 +264,7 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print('-'*10)
         await Reply(update, response)
     except:
-        Reply(update, 'error')
+        await Reply(update, 'error')
 
 def bot_main() -> None:
     app.add_handler(CommandHandler("start", start))
