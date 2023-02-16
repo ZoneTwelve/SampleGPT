@@ -58,10 +58,10 @@ def GetText(update: Update) -> str:
     return update.message.text
 
 def GetTextWithoutCommand(update: Union[Update, Message]) -> str:
-    try:
-        if(type(update) is Update):
-            return ' '.join(update.message.text.split(' ')[1:])
-        elif(type(update) is Message):
-            return ' '.join(update.text.split(' ')[1:])
-    except:
+    if(type(update) is Update):
+        ret = ' '.join(update.message.text.split(' ')[1:])
+    elif(type(update) is Message):
+        ret = ' '.join(update.text.split(' ')[1:])
+    if ret == '':
         return None
+    return ret
