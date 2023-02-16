@@ -48,6 +48,18 @@ def GetUserID(update: Update) -> int:
 def GetGroupID(update: Update) -> int:
     return update.message.chat.id
 
+def GetUser(update: Union[Update, Message]) -> str:
+    if(type(update) is Update):
+        return update.message.from_user
+    elif(type(update) is Message):
+        return update.from_user
+    
+def GetFullName(update: Union[Update, Message]) -> str:
+    if(type(update) is Update):
+        return update.message.from_user.full_name
+    elif(type(update) is Message):
+        return update.from_user.full_name
+    
 def GetUserName(update: Union[Update, Message]) -> str:
     if(type(update) is Update):
         return update.message.from_user.name
