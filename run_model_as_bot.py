@@ -264,7 +264,7 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print('-'*10)
         await Reply(update, response)
     except:
-        Reply(update, 'error')
+        await Reply(update, 'error')
 
 def bot_main() -> None:
     app.add_handler(CommandHandler("start", start))
