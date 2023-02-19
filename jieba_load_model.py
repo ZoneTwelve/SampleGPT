@@ -1,20 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[12]:
 
 
 #!/usr/bin/env python3
-import logging
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-import time
-
-from telegram import ForceReply, Update
-from telegram.ext import CommandHandler, ContextTypes
-from TelegramApi import *
-
+import jieba
 
 # hyperparameters
 batch_size = 64 # how many independent sequences will we process in parallel?
@@ -32,22 +26,26 @@ dropout = 0.2
 
 torch.manual_seed(1337)
 
-target = 'ne'
+target = 'tw_e_hospital'
+model_id = '1499'
 
 with open(f'datasets/{target}', 'r', encoding='utf-8') as f:
     text = f.read()
 
 # here are all the unique characters that occur in this text
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
 # create a mapping from characters to integers
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
-encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+words = list(jieba.cut( text, cut_all=False ))
+maps = dict(zip(set(words),list(range(len(words)))))
+inverse_maps = list(maps.keys())
+vocab_size = len(maps.keys())
+encode = lambda s: [maps[i] for i in s]
+decode = lambda l: ''.join([inverse_maps[i] for i in l])
+code = encode(words)
+# data = [maps[i] for i in words]
 
 # Train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
+data = torch.tensor( code, dtype=int )
+#data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9*len(data)) # first 90% will be train, rest val
 train_data = data[:n]
 val_data = data[n:]
@@ -193,10 +191,9 @@ class GPTLanguageModel(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx, max_new_tokens=100, stop_token=None, stop_token_hit=1):
+    def generate(self, idx, max_new_tokens):
         # idx is (B, T) array of indices in the current context
-        token_hit = 0
-        while True:
+        for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -block_size:]
             # get the predictions
@@ -209,68 +206,32 @@ class GPTLanguageModel(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
-            chr_token = (decode(idx_next[0].tolist()))[0]
-            if chr_token == stop_token:
-                token_hit+=1
-            if token_hit == stop_token_hit or len(idx[0]) >= max_new_tokens:
-                return idx
+        return idx
 
-
-
-# In[12]:
-
-print('Load model')
-model = torch.load(f'models/save.better.{target}.pt', map_location=torch.device('cpu') ) # map_location=torch.device('cpu') it's for CPU only Machine
+model_path = f'models/save.better.{target}-{model_id}.pt'
+model = torch.load( model_path )
 m = model.to(device)
 
 
-# In[13]:
+# In[15]:
 
 
 # generate from the model
-
-input_message = 'lan Chen: 我如果尿急應該怎麼辦🛑\n'
+input_message = jieba.cut('----------\n  如何改善懷孕期之嘔吐\n----------\n', )
 context = torch.tensor([encode( input_message )], dtype=torch.long, device=device)
 
-print('Generate')
-#context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=1000, stop_token='🛑')[0].tolist()).replace('🛑', ''))
+# context = torch.zeros((1, 1), dtype=torch.long, device=device)
+print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user = update.effective_user
-    await update.message.reply_html(
-        rf"Hi {user.mention_html()}! I'm the NCU Eating group itself.",
-        reply_markup=ForceReply(selective=True),
-    )
+# In[16]:
 
-async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    try:
-        print(update)
-        # uname = "Me"
-        text = GetTextWithoutCommand(update)
-        username = GetFullName(update)
-        if text is None:
-            text = GetTextWithoutCommand(update.message.reply_to_message)
-            username = GetFullName(update.message.reply_to_message)
 
-        input_message = username + ": " + text + '🛑\n'
 
-        context = torch.tensor([encode( input_message )], dtype=torch.long, device=device)
-        response = decode(m.generate(context, max_new_tokens=300, stop_token='🛑', stop_token_hit=5)[0].tolist()).replace('🛑', '')
-        print(response)
-        print('-'*10)
-        await Reply(update, response)
-    except:
-        await Reply(update, 'error')
 
-def bot_main() -> None:
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("talk", talk))
 
-    # Run the bot until the user presses Ctrl-C
-    logging.info("Bot Server Running...")
-    app.run_polling(stop_signals=None)
+# In[ ]:
 
-bot_main()
+
+
+
